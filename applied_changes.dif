@@ -1,0 +1,143 @@
+diff --git a/franka_controllers/config/franka_controllers.yaml b/franka_controllers/config/franka_controllers.yaml
+index 9a62ee8..89fb082 100644
+--- a/franka_controllers/config/franka_controllers.yaml
++++ b/franka_controllers/config/franka_controllers.yaml
+@@ -110,7 +110,7 @@ franka_state_controller:
+   arm_id: panda
+ 
+ 
+- controller_list:
++controller_list:
+   - name: position_joint_trajectory_controller
+     action_ns: follow_joint_trajectory
+     type: FollowJointTrajectory
+diff --git a/franka_controllers/launch/controllers.launch b/franka_controllers/launch/controllers.launch
+index 6a397fb..270418c 100644
+--- a/franka_controllers/launch/controllers.launch
++++ b/franka_controllers/launch/controllers.launch
+@@ -2,12 +2,12 @@
+ 
+ <launch>
+ 
+-   <arg name="robot_ip" value="172.16.0.2"/>
++   <arg name="robot_ip" default="10.8.11.204"/>
+    <arg name="rviz_tutorial" default="false" />
+    <arg name="use_gui" default="false" />
+    <arg name="debug" default="false" />
+ 
+-   <arg name="load_gripper" value="true" />
++   <arg name="load_gripper" default="true" />
+    <arg name="ee" default="panda_hand" /> <!-- panda_hand, tactile, schunk-->
+ 
+ 
+diff --git a/franka_controllers/launch/franka_state_control.launch b/franka_controllers/launch/franka_state_control.launch
+index 96caa93..aa07cb7 100644
+--- a/franka_controllers/launch/franka_state_control.launch
++++ b/franka_controllers/launch/franka_state_control.launch
+@@ -56,11 +56,10 @@
+          </node>
+ 
+       </group>
+-
+       <group if="$(eval ee == 'schunk')">
+          <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_schunk.urdf.xacro'" />
+          <!-- Load Gripper-->
+-         <include file="$(find schunk_pg70)/launch/pg70_rs232_control.launch" >
++         <include file="$(find schunk_pg70)/launch/pg70_rs232_control.launch"/>
+ 
+          <rosparam command="load" file="$(find franka_controllers)/config/franka_controllers.yaml" />
+          <node name="state_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="franka_state_controller"/>
+@@ -71,9 +70,9 @@
+          </node>
+          
+          <node name="joint_state_desired_publisher" type="joint_state_publisher" pkg="joint_state_publisher" output="screen">
+-            <rosparam param="source_list">[franka_state_controller/joint_states_desired, schunk_pg70/joint_states_desired] </rosparam>
++            <rosparam param="source_list">[franka_state_controller/joint_states_desired, schunk_pg70/joint_states_desired]</rosparam>
+             <param name="rate" value="100"/>
+-            <remap from="/joint_states" to="/joint_states_desired" />
++            <remap from="/joint_states" to="/joint_states_desired"/>
+          </node>
+       </group>
+    </group>
+@@ -91,80 +90,4 @@
+          <remap from="/joint_states" to="/joint_states_desired" />
+       </node>
+    </group>
+-
+-
+-
+-
+-
+-
+-
+-
+-   <!-- Previous file-->
+-   <!--
+-
+-  <arg name="load_tactile" default="true" />
+-  <arg name="load_panda"   default="false" />
+-  <arg name="load_schunk"  default="false"/>
+-   <group if="$(arg load_gripper)">
+-
+-      <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_hand.urdf.xacro'" if="$(arg load_gripper)" />
+-      <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_tactile.urdf.xacro'" if="$(arg load_tactile)" />
+-      <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm_schunk.urdf.xacro'" if="$(arg load_schunk)" />
+-   </group>
+-   <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find franka_description)/robots/panda_arm.urdf.xacro'" unless="$(arg load_gripper)" />
+-
+-
+-   <group unless="$(arg load_schunk)" >
+-      <include file="$(find franka_gripper)/launch/franka_gripper.launch" if="$(arg load_gripper)">
+-         <arg name="robot_ip" value="$(arg robot_ip)" />
+-      </include>
+-   </group>
+-
+-  <include file="$(find schunk_pg70)/launch/pg70_rs232_control.launch" if="$(arg load_schunk)" />
+-
+-
+-
+-   <node name="franka_control" pkg="franka_controllers" type="franka_control_node" output="screen" required="true">
+-      <rosparam command="load" file="$(find franka_controllers)/config/franka_control_node.yaml" />
+-      <param name="robot_ip" value="$(arg robot_ip)" />
+-   </node>
+-
+-   <rosparam command="load" file="$(find franka_controllers)/config/franka_controllers.yaml" />
+-
+-   <node name="state_controller_spawner"  pkg="controller_manager"      type="spawner" respawn="false" output="screen" args="franka_state_controller"/>
+-   <node name="robot_state_publisher"     pkg="robot_state_publisher"   type="robot_state_publisher" output="screen"/>
+-
+-      
+-   <group unless="$(arg load_schunk)">
+-      <node name="joint_state_publisher" type="joint_state_publisher" pkg="joint_state_publisher" output="screen">
+-         <rosparam if="$(arg load_gripper)" param="source_list">[franka_state_controller/joint_states, franka_gripper/joint_states] </rosparam>
+-         <rosparam unless="$(arg load_gripper)" param="source_list">[franka_state_controller/joint_states] </rosparam>
+-         <param name="rate" value="100"/>
+-      </node>
+-
+-      <node name="joint_state_desired_publisher" type="joint_state_publisher" pkg="joint_state_publisher" output="screen">
+-         <rosparam if="$(arg load_gripper)" param="source_list">[franka_state_controller/joint_states_desired, franka_gripper/joint_states] </rosparam>
+-         <rosparam unless="$(arg load_gripper)" param="source_list">[franka_state_controller/joint_states_desired] </rosparam>
+-         <param name="rate" value="100"/>
+-         <remap from="/joint_states" to="/joint_states_desired" />
+-      </node>
+-   </group>
+-
+-   <group if="$(arg load_schunk)">
+-      <rosparam command="load" file="$(find franka_controllers)/config/franka_controllers.yaml" />
+-      <node name="state_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="franka_state_controller"/>
+-      <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+-      <node name="joint_state_publisher" type="joint_state_publisher" pkg="joint_state_publisher" output="screen">
+-         <rosparam param="source_list">[franka_state_controller/joint_states, schunk_pg70/joint_states] </rosparam>
+-         <param name="rate" value="100"/>
+-      </node>
+-      
+-      <node name="joint_state_desired_publisher" type="joint_state_publisher" pkg="joint_state_publisher" output="screen">
+-         <rosparam param="source_list">[franka_state_controller/joint_states_desired, schunk_pg70/joint_states_desired] </rosparam>
+-         <param name="rate" value="100"/>
+-         <remap from="/joint_states" to="/joint_states_desired" />
+-      </node>
+-   </group>
+-   -->
+-
+ </launch>
+\ No newline at end of file

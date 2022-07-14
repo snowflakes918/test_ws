@@ -1,0 +1,20 @@
+I fixed a number of bugs with the given code to make it run. This involves applying the changes listed
+in the 'applied_changes.dif' file. After applying the changes, do the following:
+```
+catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/difadmin/libfranka-0.8.0/build
+```
+This will will link the executables to the relevant libfranka libs so franka_driver executables can be used.
+
+Currently, launching franka_controller/controller.launch works and open rviz. To use moveit planning. Just
+add it to the rviz interface
+
+To launch the controller use:
+```
+sudo su
+roslaunch franka_controllers controllers.launch load_gripper:=false load_joint_position:=true
+```
+
+note that other controllers can be launched too.
+
+
+
