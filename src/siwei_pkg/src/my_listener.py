@@ -41,37 +41,18 @@ import turtlesim.srv
 import sys
 import copy
 import rospy
-import numpy
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
+import tf_conversions
+
 from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from math import pi, tau, dist, fabs, cos
 
 
-# math calculation to get tf of tag and end effector
-def generate_tf_tag_EE(msg, tf_tag_camera, tf_camera_EE):
-    br = tf2_ros.TransformBroadcaster()
-    t = geometry_msgs.msg.TransformStamped()
-
-    t.header.stamp = rospy.Time.now()
-    t.header.frame_id = "panda_EE"
-    t.child_frame_id = "tag_0"
-    t.transform.translation.x = msg.x
-    t.transform.translation.y = msg.y
-    t.transform.translation.z = 0.0
-    q = tf.transformations.quaternion_from_euler(0, 0, msg.theta)
-    t.transform.rotation.x = q[0]
-    t.transform.rotation.y = q[1]
-    t.transform.rotation.z = q[2]
-    t.transform.rotation.w = q[3]
-
-    br.sendTransform(t)
-
-
-
+# initialization
 
 moveit_commander.roscpp_initialize(sys.argv)
 rospy.init_node('move_group_python',anonymous=True)
@@ -93,31 +74,98 @@ group_name = "panda_arm"
 group = moveit_commander.MoveGroupCommander(group_name)
 
 
-rospy.init_node('pose_listener')
+# Create a DisplayTrajectory ROS publisher which is used to display trajectories in Rviz
+display_trajectory_publisher = rospy.Publisher(
+    "/move_group/display_planned_path",
+    moveit_msgs.msg.DisplayTrajectory,
+    queue_size=20,
+)
+
+## BEGIN_SUB_TUTORIAL basic_info
+##
+## Getting Basic Information
+## ^^^^^^^^^^^^^^^^^^^^^^^^^
+# We can get the name of the reference frame for this robot:
+planning_frame = group.get_planning_frame()
+print("============ Reference frame: %s" % planning_frame)
+
+# We can also print the name of the end-effector link for this group:
+eef_link = group.get_end_effector_link()
+print("============ End effector: %s" % eef_link)
+
+# We can get a list of all the groups in the robot:
+group_names = robot.get_group_names()
+print("============ Robot Groups:", robot.get_group_names())
+
+# Sometimes for debugging it is useful to print the entire state of the
+# robot:
+print("============ Printing robot state")
+print(robot.get_current_state())
+print("")
+
+print("============ Printing robot pose")
+start_pose = group.get_current_pose()
+print(start_pose)
+print("")
+
+
+
+
+
+# transformation code
 
 tfBuffer = tf2_ros.Buffer()
 listener = tf2_ros.TransformListener(tfBuffer)
 
-# publish 
-panda_vel = rospy.Publisher('/tf', geometry_msgs.msg.Twist, queue_size=2)
-
 rate = rospy.Rate(10.0)
-while not rospy.is_shutdown():       
+
+
+flag1 = True
+# extract tf of tag and end effector
+while flag1:
+    print("Looping for lookup")
     try:
-        trans_tag_camera = tfBuffer.lookup_transform('tag_0', 'camera_link', rospy.Time()) # extract tf of tag and camera
-        trans_camera_EE = tfBuffer.lookup_transform('camera_link', 'panda_EE', rospy.Time()) # extract tf of panda end effector and world
+        trans_tag_EE = tfBuffer.lookup_transform('panda_EE', 'tag_0', rospy.Time())
+        flag1 = False
+    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+        rate.sleep()
         
+print("=-=-=-=-=-=-=-=-=-=-=-trans_tag_EE-===-=-=-=-=-=-=-=-==-=-=-=-")
+print(trans_tag_EE)
+
+while not rospy.is_shutdown():
+
+    try:
+        pose_tag = tfBuffer.lookup_transform('tag_0', 'world', rospy.Time())
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
         rate.sleep()
         continue
 
-    msg = geometry_msgs.msg.Twist()
-    # msg.angular.z = 4 * math.atan2(trans.transform.translation.y, trans.transform.translation.x)
-    # msg.linear.x = 0.5 * math.sqrt(trans.transform.translation.x ** 2 + trans.transform.translation.y ** 2)
+    flat_ori = group.get_current_pose()
+    panda_pose = flat_ori.pose
+    panda_pose.orientation.w = pose_tag.transform.rotation.w - trans_tag_EE.transform.rotation.w
+    panda_pose.orientation.x = pose_tag.transform.rotation.x - trans_tag_EE.transform.rotation.x
+    panda_pose.orientation.y = pose_tag.transform.rotation.y - trans_tag_EE.transform.rotation.y
+    panda_pose.orientation.z = pose_tag.transform.rotation.z - trans_tag_EE.transform.rotation.z
+
+    panda_pose.position.x = pose_tag.transform.translation.x - trans_tag_EE.transform.translation.x
+    panda_pose.position.y = pose_tag.transform.translation.y - trans_tag_EE.transform.translation.y
+    panda_pose.position.z = pose_tag.transform.translation.z - trans_tag_EE.transform.translation.z
 
 
-    generate_tf_tag_EE(msg, trans_tag_camera.transform, trans_camera_EE.transform)
+    # debug
 
+    # panda_pose.position.x = 0.4
+    # panda_pose.position.y = 0.0
+    # panda_pose.position.z = 0.4
+
+    group.set_pose_target(panda_pose)
+    plan = group.go(wait=True)
+    # Calling `stop()` ensures that there is no residual movement
+    group.stop()
+    # It is always good to clear your targets after planning with poses.
+    # Note: there is no equivalent function for clear_joint_value_targets()
+    group.clear_pose_targets()
 
     rate.sleep()
         
