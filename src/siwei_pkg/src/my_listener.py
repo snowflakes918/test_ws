@@ -136,17 +136,21 @@ print(trans_tag_EE)
 while not rospy.is_shutdown():
 
     try:
-        pose_tag = tfBuffer.lookup_transform('tag_0', 'world', rospy.Time())
+        pose_tag = tfBuffer.lookup_transform('world', 'tag_0', rospy.Time())
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
         rate.sleep()
         continue
 
+    print("=-=-=-=-=-=-=--==-pose_tag-=-=-=-=-=-=-=-=-=-=-=")
+    print(pose_tag)
+
+
     flat_ori = group.get_current_pose()
     panda_pose = flat_ori.pose
-    panda_pose.orientation.w = pose_tag.transform.rotation.w - trans_tag_EE.transform.rotation.w
-    panda_pose.orientation.x = pose_tag.transform.rotation.x - trans_tag_EE.transform.rotation.x
-    panda_pose.orientation.y = pose_tag.transform.rotation.y - trans_tag_EE.transform.rotation.y
-    panda_pose.orientation.z = pose_tag.transform.rotation.z - trans_tag_EE.transform.rotation.z
+    # panda_pose.orientation.w = pose_tag.transform.rotation.w - trans_tag_EE.transform.rotation.w
+    # panda_pose.orientation.x = pose_tag.transform.rotation.x - trans_tag_EE.transform.rotation.x
+    # panda_pose.orientation.y = pose_tag.transform.rotation.y - trans_tag_EE.transform.rotation.y
+    # panda_pose.orientation.z = pose_tag.transform.rotation.z - trans_tag_EE.transform.rotation.z
 
     panda_pose.position.x = pose_tag.transform.translation.x - trans_tag_EE.transform.translation.x
     panda_pose.position.y = pose_tag.transform.translation.y - trans_tag_EE.transform.translation.y
@@ -160,7 +164,14 @@ while not rospy.is_shutdown():
     # panda_pose.position.z = 0.4
 
     group.set_pose_target(panda_pose)
-    plan = group.go(wait=True)
+
+    (plan_successful, trajecotry, planning_time, error_code) = group.plan()
+    if plan_successful:
+        plan = group.go(wait=True)
+        print("-=-=--==-=-=-success-=-=-=-=-=-=-=-")
+    else:
+        print("-=-=-=-=-=-=-=-fail-=-=-=-=-=--=-=--")
+
     # Calling `stop()` ensures that there is no residual movement
     group.stop()
     # It is always good to clear your targets after planning with poses.
