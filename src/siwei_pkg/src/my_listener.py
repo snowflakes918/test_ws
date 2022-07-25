@@ -33,23 +33,23 @@
 
 import rospy
 
-import math
+
 import tf2_ros
-import geometry_msgs.msg
-import turtlesim.srv
+import numpy
+import geometry_msgs
 
 import sys
-import copy
 import rospy
 import moveit_commander
 import moveit_msgs.msg
-import geometry_msgs.msg
 import tf_conversions
 
 from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from math import pi, tau, dist, fabs, cos
+
+import tf.transformations as transformations
 
 
 # initialization
@@ -109,7 +109,35 @@ print(start_pose)
 print("")
 
 
+def convert_to_matirx(lookup_tf):
+    #Get translation and rotation (from Euler angles)
+    pose = transformations.quaternion_matrix(numpy.array([lookup_tf.transform.rotation.x, lookup_tf.transform.rotation.y, lookup_tf.transform.rotation.z, lookup_tf.transform.rotation.w]))
 
+    pose[0,3] = lookup_tf.transform.translation.x
+    pose[1,3] = lookup_tf.transform.translation.y
+    pose[2,3] = lookup_tf.transform.translation.z
+
+    return pose 
+
+
+def convert_to_transform(matrix):
+    br = tf2_ros.TransformBroadcaster()
+
+    t = geometry_msgs.msg.TransformStamped()
+
+    t.header.stamp = rospy.Time.now()
+    t.header.frame_id = "world"
+    t.child_frame_id = "panda_EE"
+    t.transform.translation.x = matrix[0,3]
+    t.transform.translation.y = matrix[1,3]
+    t.transform.translation.z = matrix[2,3]
+    q = transformations.quaternion_from_matrix(matrix)
+    t.transform.rotation.x = q[0]
+    t.transform.rotation.y = q[1]
+    t.transform.rotation.z = q[2]
+    t.transform.rotation.w = q[3]
+
+    return t
 
 
 # transformation code
@@ -123,42 +151,77 @@ rate = rospy.Rate(10.0)
 flag1 = True
 # extract tf of tag and end effector
 while flag1:
-    print("Looping for lookup")
+    print("=-=-=-=-=-=-=-=-=-=-=-Looping for lookup=-=-=-=-=-=-=-=-=-=-=-=-")
     try:
-        trans_tag_EE = tfBuffer.lookup_transform('panda_EE', 'tag_0', rospy.Time())
+        tag_EE = tfBuffer.lookup_transform('tag_0', 'panda_EE', rospy.Time())
+        print("-==-=-=-=-=-=-=-=-=-=-=world to panda_link8=-=-=-=-=-=-=-=-=-=-=-=-")
+        print(tag_EE)
+        print()
+        tag_EE_M = convert_to_matirx(tag_EE)
+        print("converted matrix")
+        print(tag_EE_M)
+        print()
         flag1 = False
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
         rate.sleep()
         
-print("=-=-=-=-=-=-=-=-=-=-=-trans_tag_EE-===-=-=-=-=-=-=-=-==-=-=-=-")
-print(trans_tag_EE)
+
 
 while not rospy.is_shutdown():
 
+    # parent: world; child: tag_0
     try:
-        pose_tag = tfBuffer.lookup_transform('world', 'tag_0', rospy.Time())
+        world_tag = tfBuffer.lookup_transform('world', 'tag_0', rospy.Time())
+        print("=-=-=-=-=-=-=-=-=-=-=-=-=-=world to tag_0=-=-=-=-=-=-=-=-=-=-==-=-=")
+        print(world_tag)
+        print()
+        world_tag_M = convert_to_matirx(world_tag)
+        print("converted matrix")
+        print(world_tag_M)
+        print()
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
         rate.sleep()
         continue
 
-    print("=-=-=-=-=-=-=--==-pose_tag-=-=-=-=-=-=-=-=-=-=-=")
-    print(pose_tag)
+
+    world_EE_M = numpy.matmul(world_tag_M, tag_EE_M)
+
+    
+    print("=-=-=-=-=-=-=-=-=-=-=-=-=-world_EE_M=-=-=-=--=-=-=-=-=-=-=-=-=-=-")
+    print(world_EE_M)
+    print()
+
+    try:
+        world_EE_tf = convert_to_transform(world_EE_M)
+        print("=-=-=-=--=-=-=-=--=-world_EE_tf-=-=-=-=-=-=-=-=-=-=-=-=")
+        print(world_EE_tf)
+        print()
+    except:
+        print("!!!!!!!!!!!!!!!!!!! Converting error during convert to transform !!!!!!!!!!!!!!!!!!!!!!!!!")
 
 
     flat_ori = group.get_current_pose()
-    panda_pose = flat_ori.pose
-    # panda_pose.orientation.w = pose_tag.transform.rotation.w - trans_tag_EE.transform.rotation.w
-    # panda_pose.orientation.x = pose_tag.transform.rotation.x - trans_tag_EE.transform.rotation.x
-    # panda_pose.orientation.y = pose_tag.transform.rotation.y - trans_tag_EE.transform.rotation.y
-    # panda_pose.orientation.z = pose_tag.transform.rotation.z - trans_tag_EE.transform.rotation.z
-
-    panda_pose.position.x = pose_tag.transform.translation.x - trans_tag_EE.transform.translation.x
-    panda_pose.position.y = pose_tag.transform.translation.y - trans_tag_EE.transform.translation.y
-    panda_pose.position.z = pose_tag.transform.translation.z - trans_tag_EE.transform.translation.z
+    print("-==-=-=-=-=-=-robot pose-==-=-=-=-=-=-=-=-")
+    print(flat_ori)
+    print()
 
 
-    # debug
 
+    panda_pose = geometry_msgs.msg.Pose()
+    panda_pose.orientation.w = world_EE_tf.transform.rotation.w
+    panda_pose.orientation.x = world_EE_tf.transform.rotation.x
+    panda_pose.orientation.y = world_EE_tf.transform.rotation.y
+    panda_pose.orientation.z = world_EE_tf.transform.rotation.z
+
+    panda_pose.position.x = world_EE_tf.transform.translation.x
+    panda_pose.position.y = world_EE_tf.transform.translation.y
+    panda_pose.position.z = world_EE_tf.transform.translation.z
+
+    print("-=-==-=-=-=-=-=-=-=-=-Panda pose-=-=-=-=-=-=-=-=-=-=-")
+    print(panda_pose)
+    print()
+
+    # # debug
     # panda_pose.position.x = 0.4
     # panda_pose.position.y = 0.0
     # panda_pose.position.z = 0.4
@@ -172,11 +235,13 @@ while not rospy.is_shutdown():
     else:
         print("-=-=-=-=-=-=-=-fail-=-=-=-=-=--=-=--")
 
-    # Calling `stop()` ensures that there is no residual movement
+    # # Calling `stop()` ensures that there is no residual movement
     group.stop()
-    # It is always good to clear your targets after planning with poses.
-    # Note: there is no equivalent function for clear_joint_value_targets()
+    # # It is always good to clear your targets after planning with poses.
+    # # Note: there is no equivalent function for clear_joint_value_targets()
     group.clear_pose_targets()
+
+    rospy.sleep(1.)
 
     rate.sleep()
         
