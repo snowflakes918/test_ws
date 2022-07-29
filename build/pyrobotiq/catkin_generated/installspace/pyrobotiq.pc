@@ -1,0 +1,8 @@
+prefix=/home/difadmin/test_ws/install
+
+Name: pyrobotiq
+Description: Description of pyrobotiq
+Version: 0.1.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: robotiq_2f_gripper_control robotiq_ft_sensor rospy

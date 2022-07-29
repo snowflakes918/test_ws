@@ -1,0 +1,7 @@
+set(pyrobotiq_SETUP_PY_SETUP_MODULE "setuptools")
+set(pyrobotiq_SETUP_PY_VERSION "0.1.0")
+set(pyrobotiq_SETUP_PY_SCRIPTS "")
+set(pyrobotiq_SETUP_PY_PACKAGES "pyrobotiq")
+set(pyrobotiq_SETUP_PY_PACKAGE_DIRS "src/pyrobotiq")
+set(pyrobotiq_SETUP_PY_MODULES "")
+set(pyrobotiq_SETUP_PY_MODULE_DIRS "")

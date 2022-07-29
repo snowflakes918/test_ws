@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
+import os
 import rospy
 
 
 import tf2_ros
 import numpy
 import geometry_msgs
+import pickle
 
 import sys
 import rospy
@@ -97,7 +99,7 @@ flag1 = True
 while flag1:
     print("=-=-=-=-=-=-=-=-=-=-=-Looping for lookup=-=-=-=-=-=-=-=-=-=-=-=-")
     try:
-        tag_EE = tfBuffer.lookup_transform('tag_0', 'panda_EE', rospy.Time())
+        tag_EE = tfBuffer.lookup_transform('tag_0', 'panda_link8', rospy.Time())
         print("-==-=-=-=-=-=-=-=-=-=-=world to panda_link8=-=-=-=-=-=-=-=-=-=-=-=-")
         print(tag_EE)
         print()
@@ -109,3 +111,7 @@ while flag1:
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
         rate.sleep()
     
+
+
+# pickle the matrix 
+pickle.dump(tag_EE_M, open("save.pickle", "wb")) 
