@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import csv
-from email import header
 from turtle import home
 import rospy
 import tf2_ros
@@ -39,8 +37,8 @@ scene = moveit_commander.PlanningSceneInterface()
 ## Instantiate a `MoveGroupCommander`_ object.
 group_name = "panda_arm"
 group = moveit_commander.MoveGroupCommander(group_name)
-group.set_max_velocity_scaling_factor(0.05)
-group.set_max_acceleration_scaling_factor(0.05)
+group.set_max_velocity_scaling_factor(0.1)
+group.set_max_acceleration_scaling_factor(0.1)
 
 # Create a DisplayTrajectory ROS publisher which is used to display trajectories in Rviz
 display_trajectory_publisher = rospy.Publisher(
@@ -56,8 +54,9 @@ listener = tf2_ros.TransformListener(tfBuffer)
 rate = rospy.Rate(10.0)
 
 
-def plan_and_execute(panda_pose):
 
+
+def plan_and_execute(panda_pose):
     group.set_pose_target(panda_pose)
 
     waypoints = []
@@ -65,8 +64,8 @@ def plan_and_execute(panda_pose):
 
     plan_successful = False
     (trajecotry, fraction) = group.compute_cartesian_path(waypoints, 0.005, 0.0)
-    # print("=-=-=-=-=-=-=fraction=-=-=-=-=-=-==-=-")
-    # print(fraction)
+    print("=-=-=-=-=-=-=fraction=-=-=-=-=-=-==-=-")
+    print(fraction)
 
     if fraction > 0.7:
         plan_successful = True
@@ -80,8 +79,8 @@ def plan_and_execute(panda_pose):
 
     # execute the plan
     if plan_successful:
-        group.execute(trajecotry, wait=True)
-        # print("-=-=--==-=-=-SUCCESS-=-=-=-=-=-=-=-")
+        # group.execute(trajecotry, wait=True)
+        print("-=-=--==-=-=-SUCCESS-=-=-=-=-=-=-=-")
     else:
         print("-=-=-=-=-=-=-=-FAIL-=-=-=-=-=--=-=--")
 
@@ -90,10 +89,10 @@ def plan_and_execute(panda_pose):
     group.clear_pose_targets()
 
 
+
 def goto_home():
     # load the tf between tag to end effector
     home_pose = pickle.load(open("./src/siwei_pkg/pickle/home_tf.pickle", "rb"))
-    home_pose = mytools.convert_to_transform(home_pose)
 
 
     # set up pose goal
@@ -109,9 +108,10 @@ def goto_home():
 
     plan_and_execute(panda_pose)
 
+
 def calcuate_vial_frame():
     # load the tf between tag to end effector
-    tag_EE_M = pickle.load(open("./src/siwei_pkg/pickle/vial_tf.pickle", "rb"))
+    tag_EE_M = pickle.load(open("saved_tf.pickle", "rb"))
 
     # calculate robot pose from tag pose
     world_tag = tfBuffer.lookup_transform('world', 'tag_1', rospy.Time(), rospy.Duration(1.0))
@@ -119,28 +119,10 @@ def calcuate_vial_frame():
     world_EE_M = numpy.matmul(world_tag_M, tag_EE_M)
     world_EE_tf = mytools.convert_to_transform(world_EE_M)
 
-    world_tag_str = [
-                        world_tag.transform.translation.x, 
-                        world_tag.transform.translation.y, 
-                        world_tag.transform.translation.z, 
-                        world_tag.transform.rotation.w, 
-                        world_tag.transform.rotation.x, 
-                        world_tag.transform.rotation.y, 
-                        world_tag.transform.rotation.z, 
-                        ]
-
-    
-    header = ['x', 'y', 'z', 'qw', 'qx', 'qy', 'qz']
-
-
-    with open('tag_pose_data.csv', 'a') as f:
-        writer = csv.writer(f)
-        # writer.writerow(header)
-        writer.writerow(world_tag_str)
-
     return world_EE_tf
 
 def goto_vial(vial_frame):
+    robot_pose = group.get_current_pose()
 
     # set up pose goal
     panda_pose = geometry_msgs.msg.Pose()
@@ -161,53 +143,34 @@ def open_gripper():
 
 def go_down():
     robot_pose = group.get_current_pose()
-    print("robot_pose")
-    print(robot_pose)
 
     # set up pose goal
-    panda_pose = robot_pose.pose
-    panda_pose.position.z -= 0.115 # go down 15 cm
+    panda_pose = geometry_msgs.msg.Pose()
+    panda_pose.position.z = robot_pose.transform.translation.z - 0.15 # go down 15 cm
 
     plan_and_execute(panda_pose)
 
 def close_gripper():
     gripper.fully_close()
 
+
 def go_up():
     robot_pose = group.get_current_pose()
-    print("robot_pose")
-    print(robot_pose)
 
     # set up pose goal
-    panda_pose = robot_pose.pose
-    panda_pose.position.z += 0.115 # go down 15 cm
+    panda_pose = geometry_msgs.msg.Pose()
+    panda_pose.position.z = robot_pose.transform.translation.z + 0.15 # go up 15 cm
 
     plan_and_execute(panda_pose)
 
+
 if __name__ == '__main__':
+    # put the vial back
+    put_back_frame = calcuate_vial_frame()
+    goto_vial(put_back_frame)
+    go_down()
+    open_gripper()
+    rospy.sleep(5.)
+    go_up()
+    close_gripper()
     goto_home()
-    # pick up vial
-    for i in range(10):
-        rospy.sleep(1.0)
-        vial_frame = calcuate_vial_frame()    
-    
-    # goto_vial(vial_frame)
-
-    # open_gripper()
-    # go_down()
-    # close_gripper()
-    # rospy.sleep(5.)
-    # go_up()
-    # goto_home()
-
-    # rospy.sleep(10.)
-
-    # # put the vial back
-    # put_back_frame = calcuate_vial_frame()
-    # goto_vial(put_back_frame)
-    # go_down()
-    # open_gripper()
-    # rospy.sleep(5.)
-    # go_up()
-    # close_gripper()
-    # goto_home()

@@ -94,24 +94,21 @@ listener = tf2_ros.TransformListener(tfBuffer)
 
 rate = rospy.Rate(10.0)
 
-flag1 = True
-# extract tf of tag and end effector
-while flag1:
-    print("=-=-=-=-=-=-=-=-=-=-=-Looping for lookup=-=-=-=-=-=-=-=-=-=-=-=-")
-    try:
-        tag_EE = tfBuffer.lookup_transform('tag_0', 'panda_link8', rospy.Time())
-        print("-==-=-=-=-=-=-=-=-=-=-=world to panda_link8=-=-=-=-=-=-=-=-=-=-=-=-")
-        print(tag_EE)
-        print()
-        tag_EE_M = convert_to_matirx(tag_EE)
-        print("converted matrix")
-        print(tag_EE_M)
-        print()
-        flag1 = False
-    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-        rate.sleep()
-    
+parent_frame = 'tag_1'
+child_frame = 'panda_link8'
+
+
+tag_EE = tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time(), rospy.Duration(2.))
+print("-==-=-=-=-=-=-=-=-=-=-=world to panda_link8=-=-=-=-=-=-=-=-=-=-=-=-")
+print(tag_EE)
+print()
+tag_EE_M = convert_to_matirx(tag_EE)
+print("converted matrix")
+print(tag_EE_M)
+print()
+
+
 
 
 # pickle the matrix 
-pickle.dump(tag_EE_M, open("save.pickle", "wb")) 
+pickle.dump(tag_EE_M, open("./src/siwei_pkg/pickle/vial_tf.pickle", "wb")) 
