@@ -109,6 +109,32 @@ def goto_home():
 
     plan_and_execute(panda_pose)
 
+
+    world_tag = tfBuffer.lookup_transform('world', 'tag_1', rospy.Time(), rospy.Duration(1.0)) 
+
+    orientation_list = [
+                        world_tag.transform.rotation.w, 
+                        world_tag.transform.rotation.x, 
+                        world_tag.transform.rotation.y, 
+                        world_tag.transform.rotation.z, 
+                        ]
+
+    (r, p, y) = transformations.euler_from_quaternion(orientation_list)
+
+    world_tag_str = [
+                        world_tag.transform.translation.x, 
+                        world_tag.transform.translation.y, 
+                        world_tag.transform.translation.z, 
+                        r,
+                        p,
+                        y
+                        ]
+
+    with open('./data/home_tag_pose_data.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(world_tag_str)
+
+
 def calcuate_vial_frame():
     # load the tf between tag to end effector
     tag_EE_M = pickle.load(open("./src/siwei_pkg/pickle/vial_tf.pickle", "rb"))
@@ -119,26 +145,31 @@ def calcuate_vial_frame():
     world_EE_M = numpy.matmul(world_tag_M, tag_EE_M)
     world_EE_tf = mytools.convert_to_transform(world_EE_M)
 
+    orientation_list = [
+                        world_tag.transform.rotation.w, 
+                        world_tag.transform.rotation.x, 
+                        world_tag.transform.rotation.y, 
+                        world_tag.transform.rotation.z
+                        ]
+
+    (r, p, y) = transformations.euler_from_quaternion(orientation_list)
+
     world_tag_str = [
                         world_tag.transform.translation.x, 
                         world_tag.transform.translation.y, 
                         world_tag.transform.translation.z, 
-                        world_tag.transform.rotation.w, 
-                        world_tag.transform.rotation.x, 
-                        world_tag.transform.rotation.y, 
-                        world_tag.transform.rotation.z, 
+                        r,
+                        p,
+                        y
                         ]
 
-    
-    header = ['x', 'y', 'z', 'qw', 'qx', 'qy', 'qz']
 
-
-    with open('tag_pose_data.csv', 'a') as f:
+    with open('./data/tag_pose_data.csv', 'a') as f:
         writer = csv.writer(f)
-        # writer.writerow(header)
         writer.writerow(world_tag_str)
 
     return world_EE_tf
+
 
 def goto_vial(vial_frame):
 
@@ -155,6 +186,46 @@ def goto_vial(vial_frame):
 
     plan_and_execute(panda_pose)
 
+    current_pose = group.get_current_pose()
+
+    orientation_list = [
+                    current_pose.pose.orientation.w, 
+                    current_pose.pose.orientation.x, 
+                    current_pose.pose.orientation.y, 
+                    current_pose.pose.orientation.z, 
+                    ]
+
+    (r, p, y) = transformations.euler_from_quaternion(orientation_list)
+
+    current_pose_str = [
+                        current_pose.pose.position.x, 
+                        current_pose.pose.position.y, 
+                        current_pose.pose.position.z, 
+                        r,
+                        p,
+                        y
+                        ]
+    
+
+    with open('./data/vial_robot_pose_data.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(current_pose_str)
+
+
+def header_printer():
+    header = ['x', 'y', 'z', 'rx', 'ry', 'rz']
+
+    with open('./data/vial_robot_pose_data.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+
+    with open('./data/tag_pose_data.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+
+    with open('./data/home_tag_pose_data.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
 
 def open_gripper():
     gripper.open()
@@ -184,15 +255,21 @@ def go_up():
 
     plan_and_execute(panda_pose)
 
+
+
 if __name__ == '__main__':
-    goto_home()
-    # pick up vial
+    
+    header_printer()
     for i in range(10):
+        goto_home()
         rospy.sleep(1.0)
         vial_frame = calcuate_vial_frame()    
-    
-    # goto_vial(vial_frame)
+        goto_vial(vial_frame)
+        rospy.sleep(2.0)
 
+    # goto_home()
+    # vial_frame = calcuate_vial_frame()    
+    # goto_vial(vial_frame)
     # open_gripper()
     # go_down()
     # close_gripper()

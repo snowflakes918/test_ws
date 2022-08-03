@@ -10,7 +10,6 @@ from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from math import pi, tau, dist, fabs, cos
-from pyrobotiq import PyRobotiqGripper
 import tf.transformations as transformations
 
 
