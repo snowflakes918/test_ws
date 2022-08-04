@@ -94,21 +94,20 @@ listener = tf2_ros.TransformListener(tfBuffer)
 
 rate = rospy.Rate(10.0)
 
-parent_frame = 'tag_1'
-child_frame = 'panda_link8'
+parent_frame = 'world'
+child_frame = 'tag_1'
 
 
-tag_EE = tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time(), rospy.Duration(2.))
-print("-==-=-=-=-=-=-=-=-=-=-=world to panda_link8=-=-=-=-=-=-=-=-=-=-=-=-")
-print(tag_EE)
+tf_to_save = tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time(), rospy.Duration(2.))
+print("-==-=-=-=-=-=-=-=-=-=-= M_to_save =-=-=-=-=-=-=-=-=-=-=-=-")
+print(tf_to_save)
 print()
-tag_EE_M = convert_to_matirx(tag_EE)
+M_to_save = convert_to_matirx(tf_to_save)
 print("converted matrix")
-print(tag_EE_M)
+print(M_to_save)
 print()
-
 
 
 
 # pickle the matrix 
-pickle.dump(tag_EE_M, open("./src/siwei_pkg/pickle/vial_tf.pickle", "wb")) 
+pickle.dump(M_to_save, open("./src/siwei_pkg/pickle/vial_tf.pickle", "wb")) 

@@ -2,6 +2,7 @@
 
 import csv
 from email import header
+from multiprocessing.connection import wait
 from turtle import home
 import rospy
 import tf2_ros
@@ -39,8 +40,8 @@ scene = moveit_commander.PlanningSceneInterface()
 ## Instantiate a `MoveGroupCommander`_ object.
 group_name = "panda_arm"
 group = moveit_commander.MoveGroupCommander(group_name)
-group.set_max_velocity_scaling_factor(0.05)
-group.set_max_acceleration_scaling_factor(0.05)
+group.set_max_velocity_scaling_factor(0.1)
+group.set_max_acceleration_scaling_factor(0.1)
 
 # Create a DisplayTrajectory ROS publisher which is used to display trajectories in Rviz
 display_trajectory_publisher = rospy.Publisher(
@@ -90,10 +91,36 @@ def plan_and_execute(panda_pose):
     group.clear_pose_targets()
 
 
+def goto_home1():
+    joint_position = [-0.3042415636565341, -0.516771066715793, 0.23751219045310307, -1.9972557551605137, 0.10984729260846328, 1.5081504631572298, 0.6868139929042922]
+    group.go(joint_position, wait=True)
+    group.stop()
+
+def goto_home2():
+    joint_position = [-0.34463144525266226, 0.3495718096281662, 0.22345331240551683, -1.2203279933427509, 0.036560375945434716, 1.21377803489897, 0.290615091152732]
+    group.go(joint_position, wait=True)
+    group.stop()
+
+def goto_home3():
+    joint_position = [-0.27561389103205225, -1.063369343777398, 0.14180338345826177, -2.6073108657035737, 0.11509165027569186, 1.9262957933770377, 0.42931716665211644]
+    group.go(joint_position, wait=True)
+    group.stop()
+
+def goto_home4():
+    joint_position = [-0.3042415636565341, -0.516771066715793, 0.23751219045310307, -1.9972557551605137, 0.10984729260846328, 1.5081504631572298, 0.6868139929042922]
+    group.go(joint_position, wait=True)
+    group.stop()
+
+def goto_home5():
+    joint_position = [-0.3042415636565341, -0.516771066715793, 0.23751219045310307, -1.9972557551605137, 0.10984729260846328, 1.5081504631572298, 0.6868139929042922]
+    group.go(joint_position, wait=True)
+    group.stop()
+
+
+
 def goto_home():
     # load the tf between tag to end effector
-    home_pose = pickle.load(open("./src/siwei_pkg/pickle/home_tf.pickle", "rb"))
-    home_pose = mytools.convert_to_transform(home_pose)
+    home_pose = pickle.load(open("./src/siwei_pkg/pickle/home_tf1.pickle", "rb"))
 
 
     # set up pose goal
@@ -237,7 +264,7 @@ def go_down():
 
     # set up pose goal
     panda_pose = robot_pose.pose
-    panda_pose.position.z -= 0.115 # go down 15 cm
+    panda_pose.position.z -= 0.1 # go down 10 cm
 
     plan_and_execute(panda_pose)
 
@@ -251,7 +278,7 @@ def go_up():
 
     # set up pose goal
     panda_pose = robot_pose.pose
-    panda_pose.position.z += 0.115 # go down 15 cm
+    panda_pose.position.z += 0.1 # go down 10 cm
 
     plan_and_execute(panda_pose)
 
@@ -259,32 +286,46 @@ def go_up():
 
 if __name__ == '__main__':
     
-    header_printer()
-    for i in range(10):
-        goto_home()
-        rospy.sleep(1.0)
-        vial_frame = calcuate_vial_frame()    
-        goto_vial(vial_frame)
-        rospy.sleep(2.0)
+    # header_printer()
+    # for i in range(10):
+    #     goto_home()
+    #     rospy.sleep(1.0)
+    #     vial_frame = calcuate_vial_frame()    
+    #     goto_vial(vial_frame)
+    #     rospy.sleep(2.0)
 
-    # goto_home()
-    # vial_frame = calcuate_vial_frame()    
-    # goto_vial(vial_frame)
+    
+    vial_frames = []
+    goto_home1()
+    vial_frames.append(mytools.convert_to_matirx(calcuate_vial_frame()))
+    rospy.sleep(1.0)
+    goto_home2()
+    vial_frames.append(mytools.convert_to_matirx(calcuate_vial_frame()))
+    rospy.sleep(1.0)   
+    goto_home3()
+    vial_frames.append(mytools.convert_to_matirx(calcuate_vial_frame()))   
+    rospy.sleep(1.0)  
+    # goto_home4()     
+    # vial_frame.append(calcuate_vial_frame())
+    # goto_home5()          
+    # vial_frame.append(calcuate_vial_frame())
+    
+    mat = [[0 for _ in range(4)] for _ in range(4)]
+    # mat = numpy.matrix(mat)
+
+    for m in vial_frames:
+        mat += m
+
+    average_vial_frame = mat / 3
+
+    average_vial_frame = mytools.convert_to_transform(average_vial_frame)
+
+    goto_vial(average_vial_frame)
     # open_gripper()
-    # go_down()
-    # close_gripper()
-    # rospy.sleep(5.)
-    # go_up()
-    # goto_home()
+    go_down()
 
-    # rospy.sleep(10.)
 
-    # # put the vial back
-    # put_back_frame = calcuate_vial_frame()
-    # goto_vial(put_back_frame)
-    # go_down()
-    # open_gripper()
-    # rospy.sleep(5.)
-    # go_up()
-    # close_gripper()
-    # goto_home()
+    
+
+
+
